@@ -1,0 +1,12 @@
+Consignas:
+
+1. El enunciado a resolver es el que se envía adjunto a este mail.
+Se tienen que agregar 3 métricas más a la simulación de acuerdo al mismo de acuerdo al contexto y
+ explicarlas.
+ Esto es definir las métricas y decir porque serían útiles para esa simulación y explicar el porqué.
+2. El programa debe:
+Simular N filas (ingresadas por parámetro) y mostrar J filas (ingresadas por parámetro). Por ejemplo:
+le podemos pedir simular 500 días y solo mostrar del 100 al 125.
+La cabecera de la simulación se debe mostrar siempre.
+Siempre debe mostrar la última fila del vector de estado para conocer el resultado de la simulación.
+Se pueden generar gráficos de las métricas de la simulación y su evolución (es lo deseable).
