@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Simulador de Puerto</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background: #f9f9f9; }
+    input, button { padding: 8px; margin: 5px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 20px; background: white; }
+    th, td { border: 1px solid #ccc; padding: 6px; text-align: center; }
+    th { background: #eee; }
+    .tooltip {
+      position: relative;
+      cursor: pointer;
+    }
+    .tooltip:hover::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      background: rgba(0,0,0,0.8);
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      white-space: pre-line;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+    }
+    #resultados { margin-top: 30px; background: #fff; padding: 15px; border: 1px solid #ccc; }
+  </style>
+</head>
+<body>
+  <h1>Simulador de Operaciones en el Puerto</h1>
+
+  <label>Días a simular: <input type="number" id="dias" /></label>
+  <label>Día desde: <input type="number" id="desde" /></label>
+  <label>Día hasta: <input type="number" id="hasta" /></label>
+  <label>Fase: 
+    <select id="fase">
+      <option value="1">Fase 1</option>
+      <option value="2">Fase 2</option>
+    </select>
+  </label>
+  <label>Costo Espera: <input type="number" id="espera" value="1500" /></label>
+  <label>Costo Inactividad: <input type="number" id="inactividad" value="-3200" /></label>
+  <button onclick="simular()">Enviar</button>
+
+  <table id="tabla">
+    <thead>
+      <tr>
+        <th>Día</th>
+        <th>RND Lleg</th>
+        <th>Lleg</th>
+        <th>RND Desc</th>
+        <th>Capac.</th>
+        <th>Esperando</th>
+        <th>Descarg.</th>
+        <th>Nuevo Esp.</th>
+        <th>$Descarga</th>
+        <th>$Inact.</th>
+        <th>$Espera</th>
+        <th>$Ganancia</th>
+        <th>$Acumulada</th>
+      </tr>
+    </thead>
+    <tbody id="contenido"></tbody>
+  </table>
+
+  <div id="resultados"></div>
+
+  <script>
+    async function simular() {
+      const dias = parseInt(document.getElementById("dias").value);
+      const desde = parseInt(document.getElementById("desde").value);
+      const hasta = parseInt(document.getElementById("hasta").value);
+      const fase = parseInt(document.getElementById("fase").value);
+      const espera = parseFloat(document.getElementById("espera").value);
+      const inactividad = parseFloat(document.getElementById("inactividad").value);
+
+      const contenido = document.getElementById("contenido");
+      const resultados = document.getElementById("resultados");
+      contenido.innerHTML = "";
+      resultados.innerHTML = "";
+
+      const res = await fetch("http://127.0.0.1:5000/simular", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ N: dias, desde, hasta, fase, espera, inactividad })
+      });
+
+      const data = await res.json();
+      let total_esperando = 0;
+      let dias_ocupado = 0;
+      let max_esperando = 0;
+      let acumulada = 0;
+
+      data.forEach(dia => {
+        total_esperando += dia.nuevo_esperando;
+        acumulada = dia.ganancia_acumulada;
+        max_esperando = Math.max(max_esperando, dia.nuevo_esperando);
+        if (dia.descargados > 0) dias_ocupado++;
+
+        const precios = dia.detalle_descarga.map(p => `B${p.barco}:$${p.precio} (RND: ${p.rnd})`).join('\n');
+
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${dia.dia}</td>
+          <td>${dia.rnd_lleg}</td>
+          <td>${dia.llegadas}</td>
+          <td>${dia.rnd_desc}</td>
+          <td>${dia.capacidad}</td>
+          <td>${dia.esperando}</td>
+          <td>${dia.descargados}</td>
+          <td>${dia.nuevo_esperando}</td>
+          <td class="tooltip" data-tooltip="${precios}">$${dia.costo_descarga.toFixed(2)}</td>
+          <td>$${dia.inactividad.toFixed(2)}</td>
+          <td>$${dia.espera.toFixed(2)}</td>
+          <td>$${dia.ganancia_dia.toFixed(2)}</td>
+          <td>$${dia.ganancia_acumulada.toFixed(2)}</td>
+        `;
+        contenido.appendChild(row);
+      });
+
+      resultados.innerHTML = `
+        <h3>Resultados Finales</h3>
+        <p>Ocupación del muelle: ${(dias_ocupado / dias * 100).toFixed(2)}%</p>
+        <p>Promedio barcos en espera: ${(total_esperando / dias).toFixed(2)}</p>
+        <p>Ganancia neta total: $${acumulada.toFixed(2)}</p>
+        <p>Ganancia promedio diaria: $${(acumulada / dias).toFixed(2)}</p>
+        <p>Días con muelle inactivo: ${dias - dias_ocupado} (${((dias - dias_ocupado) / dias * 100).toFixed(2)}%)</p>
+        <p>Max barcos esperando en un día: ${max_esperando}</p>
+      `;
+    }
+  </script>
+</body>
+</html>
