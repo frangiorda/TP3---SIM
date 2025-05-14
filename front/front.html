@@ -1,3 +1,4 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -36,7 +37,7 @@
   <label>Días a simular: <input type="number" id="dias" /></label>
   <label>Día desde: <input type="number" id="desde" /></label>
   <label>Día hasta: <input type="number" id="hasta" /></label>
-  <label>Fase: 
+  <label>Fase:
     <select id="fase">
       <option value="1">Fase 1</option>
       <option value="2">Fase 2</option>
@@ -78,6 +79,9 @@
       const espera = parseFloat(document.getElementById("espera").value);
       const inactividad = parseFloat(document.getElementById("inactividad").value);
 
+      const payload = { N: dias, desde, hasta, fase, espera, inactividad };
+      console.log("Enviando al backend:", payload);
+
       const contenido = document.getElementById("contenido");
       const resultados = document.getElementById("resultados");
       contenido.innerHTML = "";
@@ -86,20 +90,18 @@
       const res = await fetch("http://127.0.0.1:5000/simular", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ N: dias, desde, hasta, fase, espera, inactividad })
+        body: JSON.stringify(payload)
       });
 
       const data = await res.json();
-      let total_esperando = 0;
-      let dias_ocupado = 0;
-      let max_esperando = 0;
-      let acumulada = 0;
+
+      if (data.error) {
+        resultados.innerHTML = `<p style="color: red;">Error: ${data.error}</p>`;
+        return;
+      }
 
       data.forEach(dia => {
-        total_esperando += dia.nuevo_esperando;
-        acumulada = dia.ganancia_acumulada;
-        max_esperando = Math.max(max_esperando, dia.nuevo_esperando);
-        if (dia.descargados > 0) dias_ocupado++;
+        if (dia.dia < desde || dia.dia > hasta) return;
 
         const precios = dia.detalle_descarga.map(p => `B${p.barco}:$${p.precio} (RND: ${p.rnd})`).join('\n');
 
@@ -122,8 +124,21 @@
         contenido.appendChild(row);
       });
 
+      // Métricas globales
+      let total_esperando = 0;
+      let dias_ocupado = 0;
+      let max_esperando = 0;
+      let acumulada = 0;
+
+      data.forEach(dia => {
+        total_esperando += dia.nuevo_esperando;
+        acumulada = dia.ganancia_acumulada;
+        max_esperando = Math.max(max_esperando, dia.nuevo_esperando);
+        if (dia.descargados > 0) dias_ocupado++;
+      });
+
       resultados.innerHTML = `
-        <h3>Resultados Finales</h3>
+        <h3>Resultados Finales (sobre ${dias} días simulados)</h3>
         <p>Ocupación del muelle: ${(dias_ocupado / dias * 100).toFixed(2)}%</p>
         <p>Promedio barcos en espera: ${(total_esperando / dias).toFixed(2)}</p>
         <p>Ganancia neta total: $${acumulada.toFixed(2)}</p>
