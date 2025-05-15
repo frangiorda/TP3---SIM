@@ -1,4 +1,3 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -45,6 +44,9 @@
   </label>
   <label>Costo Espera: <input type="number" id="espera" value="1500" /></label>
   <label>Costo Inactividad: <input type="number" id="inactividad" value="-3200" /></label>
+  <br/>
+  <label>Prob. Llegadas (separadas por coma): <input type="text" id="prob_llegadas" value="0.13,0.17,0.15,0.25,0.20,0.10" /></label>
+  <label>Prob. Descargas (separadas por coma): <input type="text" id="prob_descargas" value="0.05,0.15,0.50,0.20,0.10" /></label>
   <button onclick="simular()">Enviar</button>
 
   <table id="tabla">
@@ -78,9 +80,10 @@
       const fase = parseInt(document.getElementById("fase").value);
       const espera = parseFloat(document.getElementById("espera").value);
       const inactividad = parseFloat(document.getElementById("inactividad").value);
+      const prob_llegadas = document.getElementById("prob_llegadas").value.split(",").map(parseFloat);
+      const prob_descargas = document.getElementById("prob_descargas").value.split(",").map(parseFloat);
 
-      const payload = { N: dias, desde, hasta, fase, espera, inactividad };
-      console.log("Enviando al backend:", payload);
+      const payload = { N: dias, desde, hasta, fase, espera, inactividad, prob_llegadas, prob_descargas };
 
       const contenido = document.getElementById("contenido");
       const resultados = document.getElementById("resultados");
@@ -101,7 +104,7 @@
       }
 
       data.forEach(dia => {
-        if (dia.dia < desde || dia.dia > hasta) return;
+        if (dia.dia !== 1 && dia.dia !== dias && (dia.dia < desde || dia.dia > hasta)) return;
 
         const precios = dia.detalle_descarga.map(p => `B${p.barco}:$${p.precio} (RND: ${p.rnd})`).join('\n');
 
@@ -124,7 +127,6 @@
         contenido.appendChild(row);
       });
 
-      // Métricas globales
       let total_esperando = 0;
       let dias_ocupado = 0;
       let max_esperando = 0;

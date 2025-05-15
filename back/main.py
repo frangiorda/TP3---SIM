@@ -1,4 +1,3 @@
-# main.py
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import numpy as np
@@ -10,8 +9,6 @@ CORS(app)
 @app.route('/simular', methods=['POST'])
 def simular():
     data = request.get_json()
-    print("Recibido del frontend:", data)
-
     try:
         N = int(data.get('N'))
         desde = int(data.get('desde'))
@@ -19,13 +16,20 @@ def simular():
         fase = int(data.get('fase'))
         espera = float(data.get('espera'))
         inactividad = float(data.get('inactividad'))
-    except (TypeError, ValueError) as e:
-        return jsonify({"error": f"Datos inválidos o faltantes: {str(e)}"}), 400
+        prob_llegadas = data.get("prob_llegadas")
+        prob_descargas = data.get("prob_descargas")
 
-    llegadas = [0, 1, 2, 3, 4, 5]
-    prob_llegadas = [0.13, 0.17, 0.15, 0.25, 0.20, 0.10]
-    descargas = [1, 2, 3, 4, 5]
-    prob_descargas = [0.05, 0.15, 0.50, 0.20, 0.10]
+        if not prob_llegadas or not prob_descargas:
+            return jsonify({"error": "Faltan probabilidades de llegada o descarga"}), 400
+
+        if abs(sum(prob_llegadas) - 1.0) > 0.01 or abs(sum(prob_descargas) - 1.0) > 0.01:
+            return jsonify({"error": "Las probabilidades deben sumar 1"}), 400
+
+    except Exception as e:
+        return jsonify({"error": f"Datos inválidos: {str(e)}"}), 400
+
+    llegadas = list(range(len(prob_llegadas)))
+    descargas = list(range(1, len(prob_descargas) + 1))
 
     desv_descarga = 120
     media_descarga = 800
@@ -44,8 +48,7 @@ def simular():
         if fase == 1:
             llegadas_dia = llegadas[bisect.bisect_left(llegadas_acum, rnd_lleg)]
             idx = bisect.bisect_left(descargas_acum, rnd_desc)
-            if idx >= len(descargas):
-                idx = len(descargas) - 1
+            idx = min(idx, len(descargas) - 1)
             capacidad = descargas[idx]
         else:
             llegadas_dia = int(np.random.poisson(48))
@@ -63,7 +66,7 @@ def simular():
             for i in range(descargados):
                 rnd = round(float(np.random.random()), 2)
                 if rnd == 0:
-                    rnd = 0.01  # evitar log(0)
+                    rnd = 0.01
                 z = np.sqrt(-2 * np.log(rnd)) * np.cos(2 * np.pi * np.random.random())
                 precio = round(float(z * desv_descarga + media_descarga), 2)
                 precios.append({"barco": i + 1, "rnd": rnd, "precio": precio})
